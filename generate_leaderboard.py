@@ -80,24 +80,34 @@ def build_leaderboard(users: dict) -> list:
     entries = []
 
     for username, rows in users.items():
-        oldest = rows[0]
-        newest = rows[-1]
+        # Deduplicate: keep only one row per date (the last written that day)
+        by_date = {}
+        for row in rows:
+            by_date[row["date"]] = row
+        deduped = sorted(by_date.values(), key=lambda r: r["date"])
 
-        total_now   = safe_int(newest.get("puzzles_solved_total"), 0)
-        total_start = safe_int(oldest.get("puzzles_solved_total"), 0)
-        solved_since = total_now - total_start
+        oldest = deduped[0]
+        newest = deduped[-1]
+
+        total_now    = safe_int(newest.get("puzzles_solved_total"), 0)
+        total_start  = safe_int(oldest.get("puzzles_solved_total"), 0)
+        multi_day    = oldest["date"] != newest["date"]
+
+        # Only show a delta when we have snapshots from genuinely different days.
+        # On day 1 (or if history is corrupted), fall back to total count.
+        solved_since = (total_now - total_start) if multi_day else total_now
 
         entries.append({
-            "username":              username,
+            "username":               username,
             "puzzles_since_tracking": solved_since,
-            "puzzles_total_now":     total_now,
-            "puzzle_rating_now":     safe_int(newest.get("puzzle_rating")),
-            "puzzle_rating_progress":safe_int(newest.get("puzzle_rating_progress")),
-            "avg_bullet_blitz_rapid":safe_float(newest.get("avg_bullet_blitz_rapid")),
-            "storm_best_score":      safe_int(newest.get("storm_best_score")),
-            "racer_best_score":      safe_int(newest.get("racer_best_score")),
-            "first_seen":            oldest["date"],
-            "last_seen":             newest["date"],
+            "puzzles_total_now":      total_now,
+            "puzzle_rating_now":      safe_int(newest.get("puzzle_rating")),
+            "puzzle_rating_progress": safe_int(newest.get("puzzle_rating_progress")),
+            "avg_bullet_blitz_rapid": safe_float(newest.get("avg_bullet_blitz_rapid")),
+            "storm_best_score":       safe_int(newest.get("storm_best_score")),
+            "racer_best_score":       safe_int(newest.get("racer_best_score")),
+            "first_seen":             oldest["date"],
+            "last_seen":              newest["date"],
         })
 
     # Sort: most puzzles solved since tracking first
