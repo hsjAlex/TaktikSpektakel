@@ -65,9 +65,19 @@ def get_team_members(team_id: str) -> list:
     resp.raise_for_status()
     usernames = []
     for line in resp.iter_lines():
-        if line:
+        if not line:
+            continue
+        try:
             obj = json.loads(line)
-            usernames.append(obj["username"])
+        except json.JSONDecodeError:
+            continue
+        # Lichess returns full user objects; username is under "username".
+        # "id" is the lowercase version and is always present as a fallback.
+        username = obj.get("username") or obj.get("id")
+        if username:
+            usernames.append(username)
+        else:
+            print(f"  [WARN] Skipping unexpected line shape: {list(obj.keys())}")
     print(f"Found {len(usernames)} members in team '{team_id}'.")
     return usernames
 
