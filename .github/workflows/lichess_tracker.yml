@@ -35,7 +35,7 @@ jobs:
       - name: Fetch Lichess stats
         env:
           LICHESS_API_KEY: ${{ secrets.LICHESS_API_KEY }}
-        run: python fetch_lichess_stats.py
+        run: python fetch_tactic_stats.py
 
       # 5. Commit & push the updated CSV (only if something changed)
       - name: Commit updated data
