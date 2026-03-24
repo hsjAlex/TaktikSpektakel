@@ -160,8 +160,9 @@ def main():
             "racer_best_score":        racer_score,
         }
         rows.append(row)
+        prog_str = f"{puzzle_prog:+d}" if puzzle_prog is not None else "?"
         print(
-            f"    -> puzzle: {puzzle_r} (rd={puzzle_rd}, prog={puzzle_prog:+d} if puzzle_prog else '?'), "
+            f"    -> puzzle: {puzzle_r} (rd={puzzle_rd}, prog={prog_str}), "
             f"total solved: {puzzle_total}, storm: {storm_score}, racer: {racer_score}"
         )
 
