@@ -4,6 +4,54 @@ on:
   schedule:
     # Runs every day at midnight UTC (00:00)
     - cron: "0 0 * * *"
+  # Trigger manually from the Actions tab for testing
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  fetch-and-commit:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      # Step 1: fetch stats and append to history CSV
+      - name: Fetch Lichess stats
+        env:
+          LICHESS_API_KEY: ${{ secrets.LICHESS_API_KEY }}
+        run: python fetch_lichess_stats.py
+
+      # Step 2: rebuild leaderboard from full history
+      - name: Generate leaderboard
+        run: python generate_leaderboard.py
+
+      # Step 3: commit both updated files
+      - name: Commit updated data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/tactics_history.csv data/leaderboard.csv
+          git diff --cached --quiet || git commit -m "chore: daily tactics snapshot $(date -u +%Y-%m-%d)"
+          git pushname: Lichess Daily Tactics Tracker
+
+on:
+  schedule:
+    # Runs every day at midnight UTC (00:00)
+    - cron: "0 0 * * *"
   # Lets you trigger it manually from the Actions tab for testing
   workflow_dispatch:
 
