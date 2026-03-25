@@ -1,14 +1,12 @@
-name: Lichess Daily Tactics Tracker
+name: Lichess Tactics Tracker
 
 concurrency:
   group: tactics-tracker
   cancel-in-progress: false
-  
+
 on:
   schedule:
-    # Runs every hour
     - cron: "0 * * * *"
-  # Trigger manually from the Actions tab for testing
   workflow_dispatch:
 
 env:
@@ -24,6 +22,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 🔥 WICHTIG für rebase!
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -33,21 +33,29 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      # Step 1: fetch stats and append to history CSV
+      # Step 1: fetch stats
       - name: Fetch Lichess stats
         env:
           LICHESS_API_KEY: ${{ secrets.LICHESS_API_KEY }}
         run: python fetch_lichess_stats.py
 
-      # Step 2: rebuild leaderboard from full history
+      # Step 2: generate leaderboard
       - name: Generate leaderboard
         run: python generate_leaderboard.py
 
-      # Step 3: commit both updated files
-      - name: Commit updated data
+      # Step 3: commit + push (FIXED 🔥)
+      - name: Commit and push
         run: |
-          git config user.name  "github-actions[bot]"
+          git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/tactics_history.csv data/leaderboard.csv
-          git diff --cached --quiet || git commit -m "chore: tactics snapshot $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push
+
+          git add data/
+
+          git commit -m "chore: tactics snapshot $(date -u +'%Y-%m-%dT%H:%M:%SZ')" || echo "No changes"
+
+          # 🔥 DAS ist der entscheidende Fix
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin main && break
+            echo "Retry $i..."
+            sleep 2
+          done
