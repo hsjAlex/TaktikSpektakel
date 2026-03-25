@@ -83,19 +83,19 @@ def build_leaderboard(users: dict) -> list:
         # Deduplicate: keep only one row per date (the last written that day)
         by_date = {}
         for row in rows:
-            by_date[row["date"]] = row
-        deduped = sorted(by_date.values(), key=lambda r: r["date"])
+            by_date[row.get("timestamp", row.get("date", ""))] = row
+        deduped = sorted(by_date.values(), key=lambda r: r.get("timestamp", r.get("date","")))
 
         oldest = deduped[0]
         newest = deduped[-1]
 
         total_now    = safe_int(newest.get("puzzles_solved_total"), 0)
         total_start  = safe_int(oldest.get("puzzles_solved_total"), 0)
-        multi_day    = oldest["date"] != newest["date"]
+        multi_day    = oldest.get("timestamp","")[:10] != newest.get("timestamp","")[:10]
 
         # Only show a delta when we have snapshots from genuinely different days.
         # On day 1 (or if history is corrupted), fall back to total count.
-        solved_since = (total_now - total_start) if multi_day else 0
+        solved_since = (total_now - total_start) if multi_day else total_now
 
         entries.append({
             "username":               username,
@@ -106,8 +106,8 @@ def build_leaderboard(users: dict) -> list:
             "avg_bullet_blitz_rapid": safe_float(newest.get("avg_bullet_blitz_rapid")),
             "storm_best_score":       safe_int(newest.get("storm_best_score")),
             "racer_best_score":       safe_int(newest.get("racer_best_score")),
-            "first_seen":             oldest["date"],
-            "last_seen":              newest["date"],
+            "first_seen":             oldest.get("timestamp", oldest.get("date","")),
+            "last_seen":              newest.get("timestamp", newest.get("date","")),
         })
 
     # Sort: most puzzles solved since tracking first
