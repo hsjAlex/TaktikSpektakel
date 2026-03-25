@@ -1,13 +1,13 @@
 """
 Lichess Tactics & Rating Tracker
-Team: taktikspektakel
+Team: hessische-schachjugend
 
 Fetches for every team member:
   - Ratings: Bullet, Blitz, Rapid (and their average)
   - Puzzle rating, rating deviation, rating progress, total solved
   - Puzzle Storm best score, Puzzle Racer best score
 
-Results are appended to data/tactics_history.csv daily.
+Results are appended to data/tactics_history.csv hourly.
 Run via GitHub Actions (see .github/workflows/lichess_tracker.yml).
 """
 
@@ -29,13 +29,13 @@ if not API_KEY:
     print("ERROR: LICHESS_API_KEY environment variable is not set.")
     sys.exit(1)
 
-TEAM_ID  = "taktikspektakel"
+TEAM_ID  = "hessische-schachjugend"
 BASE_URL = "https://lichess.org/api"
 HEADERS  = {"Authorization": f"Bearer {API_KEY}"}
 OUT_FILE = "data/tactics_history.csv"
 
 FIELDNAMES = [
-    "date",
+    "timestamp",
     "username",
     # Game ratings
     "bullet_rating",
@@ -110,20 +110,23 @@ def safe_get(d: dict, *keys, default=None):
 # ---------------------------------------------------------------------------
 
 def main():
-    today = datetime.date.today().isoformat()
+    now = datetime.datetime.utcnow()
+    timestamp = now.strftime("%Y-%m-%d %H:%M UTC")
+    current_hour = now.strftime("%Y-%m-%d %H")  # used for dedup: one snapshot per user per hour
 
     os.makedirs("data", exist_ok=True)
     file_exists = os.path.isfile(OUT_FILE) and os.path.getsize(OUT_FILE) > 0
 
-    # Load usernames already recorded today to prevent duplicate rows
+    # Skip users already recorded in this same hour to prevent duplicate rows
     already_recorded = set()
     if file_exists:
         with open(OUT_FILE, newline="", encoding="utf-8") as f:
             for row in csv.DictReader(f):
-                if row.get("date") == today:
+                row_hour = row.get("timestamp", "")[:13]  # "YYYY-MM-DD HH"
+                if row_hour == current_hour:
                     already_recorded.add(row["username"])
     if already_recorded:
-        print(f"Skipping {len(already_recorded)} users already recorded today.")
+        print(f"Skipping {len(already_recorded)} users already recorded this hour.")
 
     members = get_team_members(TEAM_ID)
     if not members:
@@ -133,7 +136,7 @@ def main():
     rows = []
     for username in members:
         if username in already_recorded:
-            print(f"  Skipping {username} (already recorded today).")
+            print(f"  Skipping {username} (already recorded this hour).")
             continue
         print(f"  Processing {username} ...")
         user = get_user_data(username)
@@ -159,7 +162,7 @@ def main():
         racer_score = safe_get(perfs, "racer", "score")
 
         row = {
-            "date":                    today,
+            "timestamp":               timestamp,
             "username":                username,
             "bullet_rating":           bullet_r,
             "blitz_rating":            blitz_r,
@@ -173,7 +176,7 @@ def main():
             "racer_best_score":        racer_score,
         }
         rows.append(row)
-        prog_str = f"{puzzle_prog:+d}" if puzzle_prog is not None else "?"
+        prog_str = str(puzzle_prog) if puzzle_prog is not None else "?"
         print(
             f"    -> puzzle: {puzzle_r} (rd={puzzle_rd}, prog={prog_str}), "
             f"total solved: {puzzle_total}, storm: {storm_score}, racer: {racer_score}"
