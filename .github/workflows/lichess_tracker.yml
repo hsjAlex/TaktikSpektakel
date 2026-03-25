@@ -1,5 +1,9 @@
 name: Lichess Daily Tactics Tracker
 
+concurrency:
+  group: tactics-tracker
+  cancel-in-progress: false
+  
 on:
   schedule:
     # Runs every hour
