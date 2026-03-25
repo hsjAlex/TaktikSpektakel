@@ -20,7 +20,6 @@ LEADERBOARD_FIELDS = [
     "last_seen",
 ]
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -28,27 +27,23 @@ LEADERBOARD_FIELDS = [
 def get_timestamp(row):
     return row.get("timestamp") or row.get("date") or ""
 
-
 def parse_ts(ts):
     try:
         return datetime.datetime.strptime(ts, "%Y-%m-%d %H:%M UTC")
     except:
         return None
 
-
 def safe_int(value, default=None):
     try:
         return int(value) if value not in (None, "", "None") else default
-    except:
+    except (ValueError, TypeError):
         return default
-
 
 def safe_float(value, default=None):
     try:
         return float(value) if value not in (None, "", "None") else default
-    except:
+    except (ValueError, TypeError):
         return default
-
 
 # ---------------------------------------------------------------------------
 # Load data
@@ -71,7 +66,6 @@ def load_history(path: str) -> dict:
         users[username].sort(key=lambda r: get_timestamp(r))
 
     return users
-
 
 # ---------------------------------------------------------------------------
 # Build leaderboard
@@ -98,14 +92,10 @@ def build_leaderboard(users: dict) -> list:
         total_now   = safe_int(newest.get("puzzles_solved_total"), 0)
         total_start = safe_int(oldest.get("puzzles_solved_total"), 0)
 
-        oldest_ts = get_timestamp(oldest)
-        newest_ts = get_timestamp(newest)
-
-        dt_old = parse_ts(oldest_ts)
-        dt_new = parse_ts(newest_ts)
-
-# replacement code
-solved_since = total_now - total_start
+        # -----------------------------
+        # Hourly update fix
+        # -----------------------------
+        solved_since = total_now - total_start
 
         entries.append({
             "username": username,
@@ -116,11 +106,11 @@ solved_since = total_now - total_start
             "avg_bullet_blitz_rapid": safe_float(newest.get("avg_bullet_blitz_rapid")),
             "storm_best_score": safe_int(newest.get("storm_best_score")),
             "racer_best_score": safe_int(newest.get("racer_best_score")),
-            "first_seen": oldest_ts,
-            "last_seen": newest_ts,
+            "first_seen": get_timestamp(oldest),
+            "last_seen": get_timestamp(newest),
         })
 
-    # ✅ Improved sorting
+    # Sort leaderboard
     entries.sort(
         key=lambda e: (
             e["puzzles_since_tracking"] is None,
@@ -129,7 +119,7 @@ solved_since = total_now - total_start
         )
     )
 
-    # ✅ Stable ranking (ties handled)
+    # Stable ranking
     rank = 1
     prev = None
     for i, e in enumerate(entries):
@@ -140,7 +130,6 @@ solved_since = total_now - total_start
         prev = current
 
     return entries
-
 
 # ---------------------------------------------------------------------------
 # Output
@@ -164,7 +153,6 @@ def print_leaderboard(entries: list):
             f"{prog_str:<6}"
         )
 
-
 def main():
     users   = load_history(IN_FILE)
     entries = build_leaderboard(users)
@@ -178,7 +166,6 @@ def main():
 
     print_leaderboard(entries)
     print(f"\nLeaderboard written to '{OUT_FILE}' — {len(entries)} players ranked.")
-
 
 if __name__ == "__main__":
     main()
