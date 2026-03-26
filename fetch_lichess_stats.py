@@ -113,7 +113,7 @@ def safe_get(d: dict, *keys, default=None):
 # ---------------------------------------------------------------------------
 
 def main():
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     timestamp = now.strftime("%Y-%m-%d %H:%M UTC")
     current_hour = now.strftime("%Y-%m-%d %H")
 
@@ -128,7 +128,7 @@ def main():
             for row in csv.DictReader(f):
                 row_hour = row.get("timestamp", "")[:13]
                 if row_hour == current_hour:
-                    already_recorded.add(row["username"])
+                    already_recorded.add(row["username"].lower())
                 last_totals[row["username"]] = row.get("puzzles_solved_total")
 
     members = get_team_members(TEAM_ID)
