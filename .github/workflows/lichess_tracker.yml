@@ -121,6 +121,12 @@ jobs:
           LICHESS_API_KEY: ${{ secrets.LICHESS_API_KEY }}
         run: python detect_new_members.py
 
+      - name: Baselines aktualisieren
+        if: steps.check.outputs.run == 'true'
+        env:
+          LICHESS_API_KEY: ${{ secrets.LICHESS_API_KEY }}
+        run: python update_baselines.py
+
       - name: Rangliste aktualisieren
         if: steps.check.outputs.run == 'true'
         run: python generate_leaderboard.py
