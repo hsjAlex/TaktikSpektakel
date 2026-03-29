@@ -159,7 +159,25 @@
     grid-template-columns: 1fr 1.1fr 1fr;
     gap: 12px;
     margin-bottom: 40px;
+    transition: all 0.3s ease;
   }
+  /* Kompakt-Modus: kleine Leiste statt volles Podium */
+  .podium-compact {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 6px;
+    margin-bottom: 16px;
+    opacity: 0.6;
+  }
+  .podium-compact .podium-card {
+    padding: 8px 12px !important;
+    order: unset !important;
+    align-self: unset !important;
+  }
+  .podium-compact .podium-piece { display: none; }
+  .podium-compact .podium-solved { display: none; }
+  .podium-compact .podium-rating { display: none; }
+  .podium-compact .podium-rank { font-size: 20px !important; display: inline; margin: 0 4px 0 0; }
+  .podium-compact .podium-name { font-size: 13px !important; display: inline; }
   .podium-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -219,7 +237,7 @@
   /* ── table ── */
   .table-header {
     display: grid;
-    grid-template-columns: 44px 1fr 100px 100px 80px 80px;
+    grid-template-columns: 44px 1fr 110px 120px 90px 90px 90px;
     padding: 10px 16px;
     background: #0f0f0f;
     border-bottom: 1px solid var(--border);
@@ -307,11 +325,10 @@
     .podium-card { order: unset !important; }
 
     .table-header,
-    .row { grid-template-columns: 36px 1fr 80px 80px; }
+    .row { grid-template-columns: 36px 1fr 90px; }
 
     /* all data cols hidden by default; JS removes this from the active one */
     .col-hidden { display: none !important; }
-  }
   }
 </style>
 </head>
@@ -359,7 +376,7 @@
   </div>
 
   <footer>
-    <span>Daten via <a href="https://lichess.org/api" target="_blank" rel="noopener">Lichess API</a> · stündlich aktualisiert</span>
+    <span>Daten via <a href="https://lichess.org/api" target="_blank" rel="noopener">Lichess API</a> · alle 10 Minuten aktualisiert</span>
     <a href="https://lichess.org/team/taktikspektakel" target="_blank" rel="noopener">→ Teamseite</a>
   </footer>
 
@@ -412,7 +429,7 @@ function applyMobileCols() {
 }
 
 // ── Podium ─────────────────────────────────────────────────────────────────
-function renderPodium(players) {
+function renderPodium(players, compact = false) {
   const top3    = players.slice(0,3);
   const classes = ['p2','p1','p3'];
   const orders  = [2,1,3];
@@ -459,7 +476,7 @@ function renderTable(players) {
           </div>
         </div>
         <div class="cell-solved">${fmt(p.puzzles_since_tracking)}</div>
-        <div class="cell-rating">${fmt(p.puzzle_rating_now)}</div>
+        <div class="cell-rating">${fmtRating(p.puzzle_rating_now)}</div>
         <div class="cell-avg">${fmt(p.avg_bullet_blitz_rapid)}</div>
         <div class="cell-storm">${storm==='—'?'<span style="color:#444">—</span>':`<span>⚡ ${storm}</span>`}</div>
         <div class="cell-racer">${racer==='—'?'<span style="color:#444">—</span>':`<span>🏁 ${racer}</span>`}</div>
@@ -476,16 +493,22 @@ function getFiltered() {
   return list;
 }
 
+function fmtRating(val) {
+  const n = fmt(val);
+  if (n === '—') return '<span style="color:var(--muted);font-size:11px">keine Wertung</span>';
+  return n;
+}
+
 function render() {
   const filtered = getFiltered();
 
   document.getElementById('showing-count').textContent =
     searchTerm ? `${filtered.length} von ${allPlayers.length} Spielern` : `${allPlayers.length} Spieler`;
 
-  const showPodium = !searchTerm && sortKey==='puzzles_since_tracking';
-  const podiumEl = document.getElementById('podium');
-  podiumEl.style.display = showPodium ? 'grid' : 'none';
-  if (showPodium) renderPodium(allPlayers.slice(0,3));
+  const isDefault = !searchTerm && sortKey==='puzzles_since_tracking';
+  const podiumEl  = document.getElementById('podium');
+  podiumEl.classList.toggle('podium-compact', !isDefault);
+  renderPodium(allPlayers.slice(0,3), !isDefault);
 
   renderTable(filtered.map(p => ({...p, rank: p._rank})));
   applyMobileCols();
@@ -543,6 +566,24 @@ document.querySelectorAll('#table-header span[data-sort]').forEach(th =>
   }));
 
 loadData();
+
+// Auto-refresh alle 5 Minuten — lädt nur die CSV neu, kein Seitenreload
+setInterval(async () => {
+  try {
+    const res   = await fetch('data/leaderboard.csv?t=' + Date.now()); // cache-bust
+    const text  = await res.text();
+    const fresh = parseCSV(text).filter(p => p.username);
+    if (fresh.length === 0) return;
+    allPlayers = fresh;
+    const lastSeen = allPlayers[0]?.last_seen || '—';
+    document.getElementById('last-updated').textContent =
+      lastSeen.includes('T') ? lastSeen.replace('T',' ').substring(0,16)+' UTC' : lastSeen;
+    document.getElementById('total-players').textContent = allPlayers.length;
+    render();
+  } catch(e) {
+    console.warn('Auto-refresh fehlgeschlagen:', e);
+  }
+}, 5 * 60 * 1000);
 </script>
 </body>
 </html>
