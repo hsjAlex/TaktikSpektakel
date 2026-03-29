@@ -40,12 +40,12 @@ jobs:
         env:
           LICHESS_API_KEY: ${{ secrets.LICHESS_API_KEY }}
         run: |
-          MINUTE=$(date -u +%M)
-          if [ "$MINUTE" = "00" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Minute=$MINUTE → Stats-Update wird ausgeführt."
+          MINUTE=$(date -u +%M | sed 's/^0*//' | grep -v '^$' || echo 0)
+          if [ "$MINUTE" -le 5 ] || [ "$MINUTE" -ge 55 ]; then
+            echo "Minute=$MINUTE → Stats-Update wird ausgeführt (±5 min um volle Stunde)."
             python fetch_lichess_stats.py
           else
-            echo "Minute=$MINUTE → Kein Stats-Update (nur zur vollen Stunde)."
+            echo "Minute=$MINUTE → Kein Stats-Update."
           fi
 
       # ── Immer: Rangliste neu generieren ───────────────────────────────────
