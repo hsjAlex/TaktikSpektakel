@@ -1,9 +1,7 @@
 name: Lichess Tactics Tracker
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"   # alle 10 Minuten
-  workflow_dispatch:
+  workflow_dispatch:   # wird von cron-job.org alle 10 Minuten getriggert
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
