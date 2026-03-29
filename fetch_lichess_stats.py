@@ -14,6 +14,7 @@ if not API_KEY:
     sys.exit(1)
 
 TEAM_ID  = "taktikspektakel"
+DRY_RUN  = os.environ.get("DRY_RUN", "false").lower() == "true"
 BASE_URL = "https://lichess.org/api"
 HEADERS  = {"Authorization": f"Bearer {API_KEY}"}
 OUT_FILE = "data/tactics_history.csv"
@@ -207,14 +208,22 @@ def main():
 
     # ── Write results ────────────────────────────────────────────────────────
     if rows:
-        with open(OUT_FILE, "a", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-            if not file_exists:
-                writer.writeheader()
-            writer.writerows(rows)
+        if DRY_RUN:
+            print(f"\n[DRY RUN] Würde {len(rows)} Zeilen schreiben — kein Schreibzugriff.")
+            print(f"{'USERNAME':<25} {'AUFGABEN':>10} {'WERTUNG':>8}")
+            print("-" * 45)
+            for r in rows:
+                print(f"{r['username']:<25} {str(r['puzzles_solved_total']):>10} {str(r['puzzle_rating']):>8}")
+        else:
+            with open(OUT_FILE, "a", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+                if not file_exists:
+                    writer.writeheader()
+                writer.writerows(rows)
 
     skipped = len(already_recorded)
-    print(f"\nDone. Wrote {len(rows)} rows, skipped {skipped} (already recorded this hour).")
+    mode = "[DRY RUN] " if DRY_RUN else ""
+    print(f"\n{mode}Fertig. {len(rows)} Zeilen verarbeitet, {skipped} übersprungen.")
 
 
 if __name__ == "__main__":
